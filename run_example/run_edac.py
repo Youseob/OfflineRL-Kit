@@ -66,7 +66,7 @@ def get_args():
 
 def train(args=get_args()):
     # create env and dataset
-    if args.task in ["Hopper-v3", "Walker2d-v3", "Halfcheetah-v3"]:
+    if args.task in ["Hopper-v3", "Walker2d-v3", "HalfCheetah-v3"]:
         import neorl
         env = neorl.make(args.task)
         train, val = env.get_dataset(data_type=args.task_data_type, train_num=args.task_train_num, need_val=False, path=args.data_dir)

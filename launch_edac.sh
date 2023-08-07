@@ -7,6 +7,7 @@
 # num_critics=50
 # seed=0
 # num_worker=1
+python required.py
 python neorl_edac.py --task=$task \
                      --data_dir=$data_dir \
                      --task_data_type=$task_data_type \

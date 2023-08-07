@@ -11,7 +11,7 @@ from collections import deque
 from offlinerlkit.buffer import ReplayBuffer
 from offlinerlkit.utils.logger import Logger
 from offlinerlkit.policy import BasePolicy
-
+import wandb
 
 # model-free policy trainer
 class MFPolicyTrainer:
@@ -48,11 +48,12 @@ class MFPolicyTrainer:
 
             self.policy.train()
 
-            pbar = tqdm(range(self._step_per_epoch), desc=f"Epoch #{e}/{self._epoch}")
-            for it in pbar:
+            # pbar = tqdm(range(self._step_per_epoch), desc=f"Epoch #{e}/{self._epoch}")
+            for it in range(self._step_per_epoch):
+            # for it in pbar:
                 batch = self.buffer.sample(self._batch_size)
                 loss = self.policy.learn(batch)
-                pbar.set_postfix(**loss)
+                # pbar.set_postfix(**loss)
 
                 for k, v in loss.items():
                     self.logger.logkv_mean(k, v)
@@ -66,21 +67,28 @@ class MFPolicyTrainer:
             eval_info = self._evaluate()
             ep_reward_mean, ep_reward_std = np.mean(eval_info["eval/episode_reward"]), np.std(eval_info["eval/episode_reward"])
             ep_length_mean, ep_length_std = np.mean(eval_info["eval/episode_length"]), np.std(eval_info["eval/episode_length"])
-            norm_ep_rew_mean = self.eval_env.get_normalized_score(ep_reward_mean) * 100
-            norm_ep_rew_std = self.eval_env.get_normalized_score(ep_reward_std) * 100
-            last_10_performance.append(norm_ep_rew_mean)
-            self.logger.logkv("eval/normalized_episode_reward", norm_ep_rew_mean)
-            self.logger.logkv("eval/normalized_episode_reward_std", norm_ep_rew_std)
-            self.logger.logkv("eval/episode_length", ep_length_mean)
-            self.logger.logkv("eval/episode_length_std", ep_length_std)
-            self.logger.set_timestep(num_timesteps)
-            self.logger.dumpkvs()
+            # norm_ep_rew_mean = self.eval_env.get_normalized_score(ep_reward_mean) * 100
+            # norm_ep_rew_std = self.eval_env.get_normalized_score(ep_reward_std) * 100
+            # last_10_performance.append(norm_ep_rew_mean)
+            # self.logger.logkv("eval/normalized_episode_reward", norm_ep_rew_mean)
+            # self.logger.logkv("eval/normalized_episode_reward_std", norm_ep_rew_std)
+            # self.logger.logkv("eval/episode_length", ep_length_mean)
+            # self.logger.logkv("eval/episode_length_std", ep_length_std)
+            # self.logger.set_timestep(num_timesteps)
+            # self.logger.dumpkvs()
+            wandb.log({
+                "eval/episode_reward": ep_reward_mean,
+                "eval/episode_reward_std": ep_reward_std, 
+                "eval/episode_length": ep_length_mean,
+                "eval/episode_length_std": ep_length_std,
+            }, step=e)
         
+
             # save checkpoint
-            torch.save(self.policy.state_dict(), os.path.join(self.logger.checkpoint_dir, "policy.pth"))
+            # torch.save(self.policy.state_dict(), os.path.join(self.logger.checkpoint_dir, "policy.pth"))
 
         self.logger.log("total time: {:.2f}s".format(time.time() - start_time))
-        torch.save(self.policy.state_dict(), os.path.join(self.logger.model_dir, "policy.pth"))
+        # torch.save(self.policy.state_dict(), os.path.join(self.logger.model_dir, "policy.pth"))
         self.logger.close()
 
         return {"last_10_performance": np.mean(last_10_performance)}

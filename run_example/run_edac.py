@@ -35,7 +35,10 @@ walker2d-medium-expert-v2: num-critics=10, eta=5.0
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--algo-name", type=str, default="edac")
-    parser.add_argument("--task", type=str, default="hopper-medium-v2")
+    parser.add_argument("--task", type=str, default="Hopper-v3")
+    parser.add_argument("--task-data-type", type=str, default="low")
+    parser.add_argument("--task-train-num", type=int, default="100")
+    parser.add_argument("--data-dir", type=str, default="/input")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--actor-lr", type=float, default=1e-4)
     parser.add_argument("--critic-lr", type=float, default=3e-4)
@@ -52,7 +55,7 @@ def get_args():
     parser.add_argument("--eta", type=float, default=1.0)
     parser.add_argument("--normalize-reward", type=bool, default=False)
 
-    parser.add_argument("--epoch", type=int, default=3000)
+    parser.add_argument("--epoch", type=int, default=2000)
     parser.add_argument("--step-per-epoch", type=int, default=1000)
     parser.add_argument("--eval_episodes", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=256)
@@ -63,8 +66,19 @@ def get_args():
 
 def train(args=get_args()):
     # create env and dataset
-    env = gym.make(args.task)
-    dataset = qlearning_dataset(env)
+    if args.task in ["Hopper-v3", "Walker2d-v3", "Halfcheetah-v3"]:
+        import neorl
+        env = neorl.make(args.task)
+        train, val = env.get_dataset(data_type=args.task_data_type, train_num=args.task_train_num, need_val=False, path=args.data_dir)
+        dataset = dict()
+        dataset['observations'] = train['obs'].copy() 
+        dataset['actions'] = train['action'].copy()
+        dataset['next_observations'] = train['next_obs'].copy()
+        dataset['rewards'] = train['reward'].squeeze().copy()
+        dataset['terminals'] = train['done'].squeeze().copy()
+    else:
+        env = gym.make(args.task)
+        dataset = qlearning_dataset(env)
     if args.normalize_reward:
         mu, std = dataset["rewards"].mean(), dataset["rewards"].std()
         dataset["rewards"] = (dataset["rewards"] - mu) / (std + 1e-3)
@@ -140,6 +154,20 @@ def train(args=get_args()):
 
     # log
     log_dirs = make_log_dirs(args.task, args.algo_name, args.seed, vars(args), record_params=["num_critics", "eta"])
+    
+    # wandb
+    import wandb
+    import uuid
+    wandb.init(
+        config=args,
+        project=f'NeoRL-{args.task}-{args.task_data_type}-{args.task_train_num}', # "d4rl-halfcheetah-medium-v2"
+        group="edac", # "maple"
+        name=f"edac-num-critics-{args.num_critics}-eta-{args.eta}", 
+        id=str(uuid.uuid4())
+    )
+    print(f'NeoRL-{args.task}-{args.task_data_type}-{args.task_train_num}')
+    print(f"exp name: edac-num-critics-{args.num_critics}-eta-{args.eta}")
+    
     # key: output file name, value: output handler type
     output_config = {
         "consoleout_backup": "stdout",
